@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>荆州古城 · 噪音分布热力图（可听声）</title>
+    <title>荆州古城 · 声纹图 · 噪音分布热力图</title>
     <style>
         * {
             margin: 0;
@@ -13,39 +13,92 @@
         body {
             font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Roboto, Arial, sans-serif;
             overflow: hidden;
+            background: #1a1a2e;
         }
         #map {
             width: 100vw;
             height: 100vh;
         }
-        
+
+        /* ===== 鹅黄色标题横幅 ===== */
+        .hero-title {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            background: linear-gradient(135deg, #FFF3C4 0%, #FFE4A0 40%, #FFD980 100%);
+            padding: 8px 20px 6px;
+            text-align: center;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+            border-bottom: 2px solid #D4A017;
+            pointer-events: none;
+        }
+        .hero-title h1 {
+            font-size: clamp(22px, 4.2vw, 42px);
+            font-weight: 900;
+            color: #3E2723;
+            text-shadow: 0 1px 4px rgba(255, 215, 0, 0.3);
+            letter-spacing: 6px;
+            font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+        }
+        .hero-title .sub {
+            font-size: clamp(10px, 1.2vw, 14px);
+            color: #5D4037;
+            letter-spacing: 3px;
+            opacity: 0.85;
+            font-weight: 400;
+            margin-top: 0px;
+            display: block;
+        }
+        .hero-title::before,
+        .hero-title::after {
+            content: "◆";
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #B8860B;
+            font-size: clamp(12px, 1.6vw, 20px);
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        .hero-title::before {
+            left: 14px;
+        }
+        .hero-title::after {
+            right: 14px;
+        }
+
+        /* ===== 控制按钮 ===== */
         .control {
             position: absolute;
-            top: 20px;
+            top: 90px;
             left: 20px;
             z-index: 999;
-            background: rgba(255,255,255,0.96);
+            background: rgba(255, 255, 255, 0.96);
             backdrop-filter: blur(4px);
-            padding: 12px 18px;
+            padding: 8px 14px;
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            border: 1px solid rgba(0,0,0,0.08);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(0, 0, 0, 0.08);
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: 5px;
             max-width: 420px;
+            pointer-events: auto;
         }
         .control button {
-            padding: 6px 16px;
+            padding: 5px 14px;
             border: none;
             background: #2a80eb;
             color: white;
             border-radius: 30px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 500;
             transition: all 0.2s ease;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            pointer-events: auto;
         }
         .control button:hover {
             background: #1e6acf;
@@ -60,41 +113,56 @@
         .control .noise-btn:hover {
             background: #d35400;
         }
+        .control .danger-btn {
+            background: #c0392b;
+        }
+        .control .danger-btn:hover {
+            background: #a93226;
+        }
 
+        /* ===== 信息提示 ===== */
         .info {
             position: absolute;
             bottom: 20px;
             left: 20px;
             z-index: 999;
-            background: rgba(0,0,0,0.75);
+            background: rgba(0, 0, 0, 0.78);
             backdrop-filter: blur(8px);
             color: white;
-            padding: 10px 16px;
+            padding: 10px 18px;
             border-radius: 28px;
             font-size: 13px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-            max-width: 400px;
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.4);
+            max-width: 420px;
             pointer-events: none;
-            font-weight: 500;
+            font-weight: 400;
+            line-height: 1.5;
+            border-left: 4px solid #ff9800;
+        }
+        .info strong {
+            color: #ffd54f;
         }
 
+        /* ===== 图例 ===== */
         .legend {
             position: absolute;
             left: 20px;
-            bottom: 85px;
+            bottom: 95px;
             z-index: 999;
-            background: rgba(255,255,255,0.92);
+            background: rgba(255, 255, 255, 0.93);
             backdrop-filter: blur(4px);
             padding: 10px 14px;
             border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
             font-size: 12px;
             border: 1px solid #ddd;
+            pointer-events: none;
         }
         .legend h4 {
             margin-bottom: 6px;
             font-size: 13px;
             font-weight: 600;
+            color: #1e4663;
         }
         .gradient {
             width: 160px;
@@ -108,28 +176,31 @@
             justify-content: space-between;
             font-size: 11px;
             padding: 0 2px;
+            color: #333;
         }
 
+        /* ===== 右侧排行榜 ===== */
         .point-list {
             position: absolute;
-            top: 20px;
+            top: 90px;
             right: 20px;
             z-index: 999;
-            background: rgba(255,255,255,0.97);
+            background: rgba(255, 255, 255, 0.97);
             backdrop-filter: blur(4px);
             padding: 12px 0;
             border-radius: 20px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-            max-height: 85vh;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+            max-height: 78vh;
             overflow-y: auto;
-            width: 275px;
-            border: 1px solid rgba(0,0,0,0.1);
+            width: 280px;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            pointer-events: auto;
         }
         .point-list h4 {
             margin: 0 0 8px 18px;
             font-size: 16px;
             font-weight: 700;
-            border-left: 5px solid #ff9800;
+            border-left: 5px solid #ff6f00;
             padding-left: 12px;
             color: #1e4663;
             display: flex;
@@ -140,7 +211,7 @@
             font-size: 11px;
             font-weight: normal;
             background: #ffecb3;
-            padding: 2px 8px;
+            padding: 2px 10px;
             border-radius: 30px;
             color: #b45f06;
         }
@@ -153,21 +224,25 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px 18px;
+            padding: 9px 18px;
             border-bottom: 1px solid #f0f0f0;
             cursor: pointer;
             transition: 0.15s;
             gap: 8px;
+            pointer-events: auto;
         }
         .rank-item:hover {
             background: #eef3fc;
-            transform: translateX(-2px);
+            transform: translateX(-3px);
+        }
+        .rank-item:active {
+            background: #d4e2f7;
         }
         .rank-number {
             font-weight: 700;
             font-size: 14px;
-            width: 32px;
-            color: #ff6d00;
+            width: 36px;
+            color: #e65100;
         }
         .rank-name {
             flex: 1;
@@ -198,11 +273,130 @@
             border-radius: 5px;
         }
 
+        /* ===== 自定义气泡样式 ===== */
+        .custom-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            color: white;
+            font-weight: 700;
+            font-size: 13px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+            border: 2px solid rgba(255,255,255,0.9);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+            transition: transform 0.2s;
+            cursor: pointer;
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            line-height: 1;
+            pointer-events: auto;
+        }
+        .custom-marker:hover {
+            transform: scale(1.15);
+            z-index: 1000;
+        }
+        /* 不同噪声等级颜色（由js动态设置背景） */
+
+        /* ===== 响应式 ===== */
         @media (max-width: 700px) {
-            .point-list { width: 250px; }
-            .rank-item { padding: 8px 12px; }
-            .rank-name { font-size: 12px; }
-            .control button { padding: 5px 12px; font-size: 11px; }
+            .point-list {
+                width: 240px;
+                top: 84px;
+                right: 10px;
+                max-height: 70vh;
+            }
+            .rank-item {
+                padding: 7px 12px;
+            }
+            .rank-name {
+                font-size: 12px;
+            }
+            .control {
+                top: 84px;
+                left: 10px;
+                padding: 6px 10px;
+                gap: 4px;
+                max-width: 300px;
+            }
+            .control button {
+                padding: 4px 10px;
+                font-size: 10px;
+            }
+            .hero-title {
+                padding: 6px 12px 4px;
+            }
+            .hero-title h1 {
+                letter-spacing: 4px;
+                font-size: 20px;
+            }
+            .hero-title::before,
+            .hero-title::after {
+                display: none;
+            }
+            .legend {
+                left: 10px;
+                bottom: 85px;
+                padding: 8px 10px;
+            }
+            .gradient {
+                width: 120px;
+            }
+            .info {
+                left: 10px;
+                bottom: 12px;
+                font-size: 12px;
+                padding: 8px 14px;
+                max-width: 300px;
+            }
+            .custom-marker {
+                width: 36px;
+                height: 36px;
+                font-size: 11px;
+            }
+        }
+        @media (max-width: 480px) {
+            .point-list {
+                width: 200px;
+                right: 6px;
+                top: 78px;
+                max-height: 60vh;
+            }
+            .rank-number {
+                width: 28px;
+                font-size: 12px;
+            }
+            .rank-value {
+                font-size: 10px;
+                padding: 2px 6px;
+            }
+            .control {
+                top: 78px;
+                left: 6px;
+                padding: 4px 8px;
+                max-width: 200px;
+            }
+            .control button {
+                padding: 3px 8px;
+                font-size: 9px;
+            }
+            .hero-title h1 {
+                font-size: 18px;
+                letter-spacing: 2px;
+            }
+            .hero-title .sub {
+                font-size: 9px;
+            }
+            .legend {
+                display: none;
+            }
+            .custom-marker {
+                width: 30px;
+                height: 30px;
+                font-size: 9px;
+                border-width: 1.5px;
+            }
         }
     </style>
 
@@ -211,322 +405,429 @@
             securityJsCode: "40ad17e9e6776903810c1a85e0d54274"
         };
     </script>
-    <script src="https://webapi.amap.com/maps?v=1.4.15&key=da455aa91f18b1f276e960e691f4d55d&plugin=AMap.Heatmap"></script>
+    <script src="https://webapi.amap.com/maps?v=1.4.15&key=da455aa91f18b1f276e960e691f4d55d&plugin=AMap.Heatmap">
+    </script>
 </head>
 <body>
-<div id="map"></div>
 
-<div class="control">
-    <button class="noise-btn" onclick="showNoiseHeat()">🔊 噪音分布热力图</button>
-    <button onclick="clearHeat()">🗑️ 清空图层</button>
-    <button onclick="togglePoints()">📍 显示/隐藏点位</button>
-    <button onclick="stopAllAudio()">🔇 停止播放</button>
-</div>
-
-<div class="legend">
-    <h4>🔊 噪声等效声级 (dB(A))</h4>
-    <div class="gradient"></div>
-    <div class="labels">
-        <span>低 (蓝)</span>
-        <span>中 (绿)</span>
-        <span>高 (红)</span>
+    <!-- ===== 鹅黄色标题 ===== -->
+    <div class="hero-title" id="heroTitle">
+        <h1>🏯 荆州古城声纹图</h1>
+        <span class="sub">✦ 噪声分布 · 可听化交互 ✦</span>
     </div>
-    <div style="margin-top:5px;">颜色越红 | 噪声越高</div>
-    <div style="margin-top:4px; font-size:10px; color:#555;">✅ 热力半径随缩放动态调整</div>
-</div>
 
-<div class="info" id="info">✨ 点击地图或右侧列表，即可听到该点位的噪声级与声源描述</div>
+    <div id="map"></div>
 
-<div class="point-list">
-    <h4>🏆 噪声等级排行榜 <small>等效声级 dB(A)</small></h4>
-    <div id="rank-list-container" class="rank-list">
-        <div style="padding: 16px; text-align: center; color: #888;">加载点位中...</div>
+    <!-- ===== 控制按钮 ===== -->
+    <div class="control">
+        <button class="noise-btn" onclick="showNoiseHeat()">🔊 噪音热力图</button>
+        <button onclick="clearHeat()">🗑️ 清空图层</button>
+        <button onclick="togglePoints()">📍 显隐点位</button>
+        <button class="danger-btn" onclick="stopAllAudio()">🔇 停止播放</button>
     </div>
-</div>
 
-<script>
-    // ============================================================
-    // 荆州古城点位数据（保留核心景点，已删除西门/新北门等，但满足噪声分析需求）
-    // 基于白天人流指数（dayCount）计算噪声级：L = 45 + 0.66 × 人流指数
-    // ============================================================
-    const points = [
-        { "lng": 112.216076, "lat": 30.347738, "name": "宾阳楼", "dayCount": 50 },
-        { "lng": 112.215857, "lat": 30.347559, "name": "东门景区", "dayCount": 48 },
-        { "lng": 112.215393, "lat": 30.347028, "name": "张居正故居", "dayCount": 46 },
-        { "lng": 112.216500, "lat": 30.347980, "name": "古城墙景区", "dayCount": 47 },
-        { "lng": 112.218200, "lat": 30.348300, "name": "城墙凉亭", "dayCount": 38 },
-        { "lng": 112.180126, "lat": 30.353465, "name": "荆州博物馆", "dayCount": 45 },
-        { "lng": 112.218080, "lat": 30.347627, "name": "金凤广场", "dayCount": 38 },
-        { "lng": 112.198193, "lat": 30.348060, "name": "南纪门(老南门)", "dayCount": 36 },
-        { "lng": 112.194000, "lat": 30.359500, "name": "天问广场", "dayCount": 35 },
-        { "lng": 112.210000, "lat": 30.355500, "name": "明月公园", "dayCount": 35 },
-        { "lng": 112.197867, "lat": 30.349416, "name": "关帝庙", "dayCount": 33 },
-        { "lng": 112.198193, "lat": 30.358022, "name": "玄妙观", "dayCount": 40 }
-    ];
+    <!-- ===== 图例 ===== -->
+    <div class="legend">
+        <h4>🔊 等效声级 dB(A)</h4>
+        <div class="gradient"></div>
+        <div class="labels">
+            <span>低 (蓝)</span>
+            <span>中 (绿)</span>
+            <span>高 (红)</span>
+        </div>
+        <div style="margin-top:5px; font-size:11px; color:#555;">颜色越红 · 噪声越高</div>
+        <div style="margin-top:3px; font-size:10px; color:#888;">✅ 热力半径随缩放自适应</div>
+    </div>
 
-    // 计算等效噪声级 dB(A)
-    function calcNoiseFromHeat(heatValue) {
-        let noise = 45 + 0.66 * heatValue;
-        return Math.min(90, Math.round(noise));
-    }
+    <!-- ===== 底部信息 ===== -->
+    <div class="info" id="info">🔊 点击地图 <strong>点位气泡</strong> 或右侧 <strong>排行榜</strong>，收听该处噪声描述</div>
 
-    // 获取详细声音描述（用于展示和语音合成）
-    function getSoundDescription(point) {
-        const noise = calcNoiseFromHeat(point.dayCount);
-        let detail = "";
-        switch(point.name) {
-            case "宾阳楼":
-                detail = `宾阳楼，等效噪声级 ${noise} 分贝。主要声源：密集游客交谈声、导游扩音器、古城光影秀背景音乐、观光车引擎声、快门声。`;
-                break;
-            case "东门景区":
-                detail = `东门景区，等效噪声级 ${noise} 分贝。声源构成：进出城门人流脚步声、摊贩叫卖、电瓶车鸣笛、团队导游讲解。`;
-                break;
-            case "张居正故居":
-                detail = `张居正故居，等效噪声级 ${noise} 分贝。主要声源：参观者低声交谈、木质门槛踩踏声、庭院水景流动声、文创店轻音乐。`;
-                break;
-            case "古城墙景区":
-                detail = `古城墙景区，等效噪声级 ${noise} 分贝。声音来源：游客行走砖石脚步声、拍照声、无人机嗡鸣、城墙上方风声。`;
-                break;
-            case "城墙凉亭":
-                detail = `城墙凉亭，等效噪声级 ${noise} 分贝。主要声源：休憩游客低声聊天、手机外放、老年乐器练习、风声鸟鸣。`;
-                break;
-            case "荆州博物馆":
-                detail = `荆州博物馆，等效噪声级 ${noise} 分贝。声环境：参观者轻声讨论、讲解员介绍、脚步声与空调风机低噪。`;
-                break;
-            case "金凤广场":
-                detail = `金凤广场，等效噪声级 ${noise} 分贝。声源分析：广场舞音乐、儿童游乐设施电子音、市民闲聊、商贩叫卖。`;
-                break;
-            case "南纪门(老南门)":
-                detail = `南纪门老南门，等效噪声级 ${noise} 分贝。主要声源：居民交谈、非机动车铃声、小贩吆喝、传统手艺敲打声。`;
-                break;
-            case "天问广场":
-                detail = `天问广场，等效噪声级 ${noise} 分贝。声源：社区活动人群、健身操音乐、儿童跑动声、开阔空间回声。`;
-                break;
-            case "明月公园":
-                detail = `明月公园，等效噪声级 ${noise} 分贝。声景：散步人群轻声聊天、林间鸟叫、公园保洁工具声。`;
-                break;
-            case "关帝庙":
-                detail = `关帝庙，等效噪声级 ${noise} 分贝。主要声源：香客祈愿、木鱼敲击、道士诵经、游客脚步。`;
-                break;
-            case "玄妙观":
-                detail = `玄妙观，等效噪声级 ${noise} 分贝。声源解析：道教音乐播放、参观者低语、古树风声、殿堂回音。`;
-                break;
-            default:
-                detail = `${point.name}，等效噪声级 ${noise} 分贝。主要声源：游客正常交谈、环境背景音。`;
+    <!-- ===== 右侧排行榜 ===== -->
+    <div class="point-list" id="pointList">
+        <h4>🏆 噪声排行榜 <small>dB(A)</small></h4>
+        <div id="rank-list-container" class="rank-list">
+            <div style="padding: 16px; text-align: center; color: #888;">加载点位中…</div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // 荆州古城点位数据
+        // ============================================================
+        const points = [{
+            "lng": 112.216076,
+            "lat": 30.347738,
+            "name": "宾阳楼",
+            "dayCount": 50
+        }, {
+            "lng": 112.215857,
+            "lat": 30.347559,
+            "name": "东门景区",
+            "dayCount": 48
+        }, {
+            "lng": 112.215393,
+            "lat": 30.347028,
+            "name": "张居正故居",
+            "dayCount": 46
+        }, {
+            "lng": 112.216500,
+            "lat": 30.347980,
+            "name": "古城墙景区",
+            "dayCount": 47
+        }, {
+            "lng": 112.218200,
+            "lat": 30.348300,
+            "name": "城墙凉亭",
+            "dayCount": 38
+        }, {
+            "lng": 112.180126,
+            "lat": 30.353465,
+            "name": "荆州博物馆",
+            "dayCount": 45
+        }, {
+            "lng": 112.218080,
+            "lat": 30.347627,
+            "name": "金凤广场",
+            "dayCount": 38
+        }, {
+            "lng": 112.198193,
+            "lat": 30.348060,
+            "name": "南纪门(老南门)",
+            "dayCount": 36
+        }, {
+            "lng": 112.194000,
+            "lat": 30.359500,
+            "name": "天问广场",
+            "dayCount": 35
+        }, {
+            "lng": 112.210000,
+            "lat": 30.355500,
+            "name": "明月公园",
+            "dayCount": 35
+        }, {
+            "lng": 112.197867,
+            "lat": 30.349416,
+            "name": "关帝庙",
+            "dayCount": 33
+        }, {
+            "lng": 112.198193,
+            "lat": 30.358022,
+            "name": "玄妙观",
+            "dayCount": 40
+        }];
+
+        // 计算等效噪声级 dB(A)
+        function calcNoiseFromHeat(heatValue) {
+            let noise = 45 + 0.66 * heatValue;
+            return Math.min(90, Math.round(noise));
         }
-        return detail;
-    }
 
-    // 语音合成
-    let currentUtterance = null;
-    function speakText(text) {
-        if (currentUtterance) {
-            window.speechSynthesis.cancel();
+        // 根据噪声值获取颜色 (绿->黄->红)
+        function getColorByNoise(noise) {
+            const ratio = (noise - 45) / (90 - 45); // 0~1
+            if (ratio < 0.33) {
+                // 绿到黄绿
+                const g = 255;
+                const r = Math.round(ratio / 0.33 * 255);
+                return `rgb(${r}, ${g}, 50)`;
+            } else if (ratio < 0.66) {
+                // 黄绿到橙黄
+                const r = 255;
+                const g = Math.round(255 - (ratio - 0.33) / 0.33 * 180);
+                return `rgb(${r}, ${g}, 0)`;
+            } else {
+                // 橙黄到红
+                const r = 255;
+                const g = Math.round(75 - (ratio - 0.66) / 0.34 * 75);
+                return `rgb(${r}, ${g}, 0)`;
+            }
         }
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "zh-CN";
-        utterance.rate = 0.9;
-        utterance.pitch = 1.0;
-        utterance.volume = 1;
-        currentUtterance = utterance;
-        window.speechSynthesis.speak(utterance);
-    }
 
-    function stopAllAudio() {
-        if (window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-            currentUtterance = null;
+        // 获取详细声音描述
+        function getSoundDescription(point) {
+            const noise = calcNoiseFromHeat(point.dayCount);
+            let detail = "";
+            switch (point.name) {
+                case "宾阳楼":
+                    detail =
+                    `宾阳楼，等效噪声级 ${noise} 分贝。主要声源：密集游客交谈声、导游扩音器、古城光影秀背景音乐、观光车引擎声、快门声。`;
+                    break;
+                case "东门景区":
+                    detail =
+                    `东门景区，等效噪声级 ${noise} 分贝。声源构成：进出城门人流脚步声、摊贩叫卖、电瓶车鸣笛、团队导游讲解。`;
+                    break;
+                case "张居正故居":
+                    detail =
+                    `张居正故居，等效噪声级 ${noise} 分贝。主要声源：参观者低声交谈、木质门槛踩踏声、庭院水景流动声、文创店轻音乐。`;
+                    break;
+                case "古城墙景区":
+                    detail =
+                    `古城墙景区，等效噪声级 ${noise} 分贝。声音来源：游客行走砖石脚步声、拍照声、无人机嗡鸣、城墙上方风声。`;
+                    break;
+                case "城墙凉亭":
+                    detail = `城墙凉亭，等效噪声级 ${noise} 分贝。主要声源：休憩游客低声聊天、手机外放、老年乐器练习、风声鸟鸣。`;
+                    break;
+                case "荆州博物馆":
+                    detail = `荆州博物馆，等效噪声级 ${noise} 分贝。声环境：参观者轻声讨论、讲解员介绍、脚步声与空调风机低噪。`;
+                    break;
+                case "金凤广场":
+                    detail =
+                    `金凤广场，等效噪声级 ${noise} 分贝。声源分析：广场舞音乐、儿童游乐设施电子音、市民闲聊、商贩叫卖。`;
+                    break;
+                case "南纪门(老南门)":
+                    detail =
+                    `南纪门老南门，等效噪声级 ${noise} 分贝。主要声源：居民交谈、非机动车铃声、小贩吆喝、传统手艺敲打声。`;
+                    break;
+                case "天问广场":
+                    detail = `天问广场，等效噪声级 ${noise} 分贝。声源：社区活动人群、健身操音乐、儿童跑动声、开阔空间回声。`;
+                    break;
+                case "明月公园":
+                    detail = `明月公园，等效噪声级 ${noise} 分贝。声景：散步人群轻声聊天、林间鸟叫、公园保洁工具声。`;
+                    break;
+                case "关帝庙":
+                    detail = `关帝庙，等效噪声级 ${noise} 分贝。主要声源：香客祈愿、木鱼敲击、道士诵经、游客脚步。`;
+                    break;
+                case "玄妙观":
+                    detail = `玄妙观，等效噪声级 ${noise} 分贝。声源解析：道教音乐播放、参观者低语、古树风声、殿堂回音。`;
+                    break;
+                default:
+                    detail = `${point.name}，等效噪声级 ${noise} 分贝。主要声源：游客正常交谈、环境背景音。`;
+            }
+            return detail;
         }
-        document.getElementById("info").innerHTML = "🔇 已停止声音播放，可重新点击点位收听。";
-    }
 
-    // 全局地图变量
-    let map = null;
-    let heatmap = null;
-    let markers = [];
-    let pointsVisible = true;
-    const center = [112.215713, 30.356396];
+        // ===== 语音合成 =====
+        let currentUtterance = null;
 
-    // 动态半径（缩放自适应）
-    function getAdaptiveRadius() {
-        if (!map) return 35;
-        const zoom = map.getZoom();
-        if (zoom >= 16) return 22;
-        if (zoom >= 14) return 32;
-        if (zoom >= 12) return 42;
-        return 52;
-    }
+        function speakText(text) {
+            if (currentUtterance) {
+                window.speechSynthesis.cancel();
+            }
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = "zh-CN";
+            utterance.rate = 0.88;
+            utterance.pitch = 1.0;
+            utterance.volume = 1;
+            currentUtterance = utterance;
+            window.speechSynthesis.speak(utterance);
+        }
 
-    function updateHeatmapRadius() {
-        if (heatmap) heatmap.setOptions({ radius: getAdaptiveRadius() });
-    }
+        function stopAllAudio() {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+                currentUtterance = null;
+            }
+            document.getElementById("info").innerHTML = "🔇 已停止声音播放，可重新点击点位收听。";
+        }
 
-    function bindZoomEvent() {
-        map.on('zoomend', () => {
-            if (heatmap && heatmap._visible) updateHeatmapRadius();
-        });
-    }
+        // ===== 全局地图变量 =====
+        let map = null;
+        let heatmap = null;
+        let markers = [];
+        let pointsVisible = true;
+        const center = [112.215713, 30.356396];
 
-    // 渲染右侧排行榜（按噪声级降序）
-    function renderRankingList() {
-        const sorted = [...points].sort((a, b) => calcNoiseFromHeat(b.dayCount) - calcNoiseFromHeat(a.dayCount));
-        const container = document.getElementById('rank-list-container');
-        if (!container) return;
-        let html = '';
-        sorted.forEach((item, idx) => {
-            const rank = idx + 1;
-            let medalIcon = '';
-            if (rank === 1) medalIcon = '🥇 ';
-            else if (rank === 2) medalIcon = '🥈 ';
-            else if (rank === 3) medalIcon = '🥉 ';
-            const noiseVal = calcNoiseFromHeat(item.dayCount);
-            const safeName = item.name.replace(/'/g, "\\'");
-            html += `
-                <div class="rank-item" onclick="quickLocateAndPlay('${safeName}')">
-                    <div class="rank-number">${medalIcon}${rank}</div>
-                    <div class="rank-name" title="${item.name}">${item.name}</div>
-                    <div class="rank-value">🔊 ${noiseVal} dB</div>
-                </div>
-            `;
-        });
-        container.innerHTML = html;
-    }
+        // 动态半径
+        function getAdaptiveRadius() {
+            if (!map) return 35;
+            const zoom = map.getZoom();
+            if (zoom >= 16) return 22;
+            if (zoom >= 14) return 32;
+            if (zoom >= 12) return 42;
+            return 52;
+        }
 
-    // 显示点位标记（默认Marker，可点击播放声音）
-    function showPoints() {
-        if (markers.length) map.remove(markers);
-        markers = [];
-        points.forEach(p => {
-            const marker = new AMap.Marker({
-                position: [p.lng, p.lat],
-                title: p.name,
-                offset: new AMap.Pixel(-12, -30)
+        function updateHeatmapRadius() {
+            if (heatmap) heatmap.setOptions({ radius: getAdaptiveRadius() });
+        }
+
+        function bindZoomEvent() {
+            map.on('zoomend', () => {
+                if (heatmap && heatmap._visible) updateHeatmapRadius();
             });
-            marker.on('click', () => {
-                const desc = getSoundDescription(p);
+        }
+
+        // ===== 渲染右侧排行榜 =====
+        function renderRankingList() {
+            const sorted = [...points].sort((a, b) => calcNoiseFromHeat(b.dayCount) - calcNoiseFromHeat(a.dayCount));
+            const container = document.getElementById('rank-list-container');
+            if (!container) return;
+            let html = '';
+            sorted.forEach((item, idx) => {
+                const rank = idx + 1;
+                let medalIcon = '';
+                if (rank === 1) medalIcon = '🥇 ';
+                else if (rank === 2) medalIcon = '🥈 ';
+                else if (rank === 3) medalIcon = '🥉 ';
+                const noiseVal = calcNoiseFromHeat(item.dayCount);
+                const safeName = item.name.replace(/'/g, "\\'");
+                html += `
+                        <div class="rank-item" onclick="quickLocateAndPlay('${safeName}')">
+                            <div class="rank-number">${medalIcon}${rank}</div>
+                            <div class="rank-name" title="${item.name}">${item.name}</div>
+                            <div class="rank-value">🔊 ${noiseVal} dB</div>
+                        </div>
+                    `;
+            });
+            container.innerHTML = html;
+        }
+
+        // ===== 显示自定义气泡标记 =====
+        function showPoints() {
+            if (markers.length) map.remove(markers);
+            markers = [];
+            points.forEach(p => {
                 const noise = calcNoiseFromHeat(p.dayCount);
-                const textToSpeak = `您现在听到的是${p.name}的声音。${desc}`;
-                speakText(textToSpeak);
-                document.getElementById("info").innerHTML = `🎤 <strong>${p.name}</strong><br>${desc}<br>🎧 正在播放语音描述...`;
-            });
-            markers.push(marker);
-        });
-        map.add(markers);
-    }
+                const color = getColorByNoise(noise);
+                // 创建自定义 div 气泡
+                const div = document.createElement('div');
+                div.className = 'custom-marker';
+                div.style.backgroundColor = color;
+                div.textContent = noise;
+                // 添加 title 提示
+                div.title = `${p.name} ${noise} dB(A)`;
 
-    function togglePoints() {
-        if (pointsVisible) {
-            map.remove(markers);
-            pointsVisible = false;
-            document.getElementById("info").innerHTML = "🗺️ 点位标记已隐藏，点击「显示/隐藏点位」重新显示";
-        } else {
+                const marker = new AMap.Marker({
+                    position: [p.lng, p.lat],
+                    content: div,
+                    offset: new AMap.Pixel(-22, -22), // 居中偏移
+                    title: p.name,
+                });
+                // 点击 Marker 发声
+                marker.on('click', () => {
+                    const desc = getSoundDescription(p);
+                    const textToSpeak = `您现在听到的是${p.name}的声音。${desc}`;
+                    speakText(textToSpeak);
+                    document.getElementById("info").innerHTML =
+                        `🎤 <strong>${p.name}</strong><br>${desc}<br>🎧 正在播放语音描述…`;
+                });
+                markers.push(marker);
+            });
             map.add(markers);
-            pointsVisible = true;
-            document.getElementById("info").innerHTML = "📍 点位已显示，点击图标或右侧列表收听噪声分析";
         }
-    }
 
-    function quickLocateAndPlay(pointName) {
-        const target = points.find(p => p.name === pointName);
-        if (!target) return;
-        map.setCenter([target.lng, target.lat]);
-        map.setZoom(16);
-        const desc = getSoundDescription(target);
-        const textToSpeak = `您现在听到的是${target.name}的声音。${desc}`;
-        speakText(textToSpeak);
-        document.getElementById("info").innerHTML = `🎯 <strong>${target.name}</strong><br>${desc}<br>🎧 正在播放语音...`;
-    }
-
-    // 显示噪音热力图（基于噪声级）
-    function showNoiseHeat() {
-        if (!heatmap) return;
-        // 构建热力图数据：count 为噪声级
-        const noiseData = points.map(p => ({
-            lng: p.lng,
-            lat: p.lat,
-            count: calcNoiseFromHeat(p.dayCount)
-        }));
-        const maxNoise = Math.max(...noiseData.map(d => d.count), 78);
-        heatmap.setDataSet({ max: maxNoise, data: noiseData });
-        heatmap.setOptions({
-            radius: getAdaptiveRadius(),
-            gradient: {
-                0.05: "#0000ff",
-                0.25: "#00ffff",
-                0.45: "#00ff00",
-                0.65: "#ffff00",
-                0.85: "#ffa500",
-                1.0: "#ff0000"
-            },
-            opacity: [0.3, 0.92]
-        });
-        heatmap.show();
-        heatmap._visible = true;
-        const topPoint = points.reduce((a,b) => calcNoiseFromHeat(a.dayCount) > calcNoiseFromHeat(b.dayCount) ? a : b);
-        document.getElementById("info").innerHTML = `🔊 噪音分布热力图已加载 | 最高噪声点: ${topPoint.name} (${calcNoiseFromHeat(topPoint.dayCount)} dB(A))<br>🎧 点击任意点位收听详细声源描述`;
-    }
-
-    function clearHeat() {
-        if (heatmap) {
-            heatmap.hide();
-            heatmap._visible = false;
+        function togglePoints() {
+            if (pointsVisible) {
+                map.remove(markers);
+                pointsVisible = false;
+                document.getElementById("info").innerHTML = "🗺️ 点位标记已隐藏，点击「显隐点位」重新显示";
+            } else {
+                map.add(markers);
+                pointsVisible = true;
+                document.getElementById("info").innerHTML = "📍 点位已显示，点击气泡或右侧列表收听噪声分析";
+            }
         }
-        document.getElementById("info").innerHTML = "🗑️ 热力图层已清除，可点击「噪音分布热力图」重新加载。";
-    }
 
-    // 地图点击：找到最近点并播放声音
-    function onMapClick(e) {
-        const lng = e.lnglat.getLng();
-        const lat = e.lnglat.getLat();
-        let nearest = null, minDist = Infinity;
-        points.forEach(p => {
-            const dist = Math.hypot(p.lng - lng, p.lat - lat);
-            if (dist < minDist) { minDist = dist; nearest = p; }
-        });
-        if (nearest) {
-            const distanceMeters = minDist * 111000;
-            const desc = getSoundDescription(nearest);
-            const textToSpeak = `距离您最近的是${nearest.name}，约${Math.round(distanceMeters)}米。${desc}`;
+        // ===== 右侧列表快速定位并播放 =====
+        function quickLocateAndPlay(pointName) {
+            const target = points.find(p => p.name === pointName);
+            if (!target) return;
+            map.setCenter([target.lng, target.lat]);
+            map.setZoom(16);
+            const desc = getSoundDescription(target);
+            const textToSpeak = `您现在听到的是${target.name}的声音。${desc}`;
             speakText(textToSpeak);
-            document.getElementById("info").innerHTML = `📍 最近点: ${nearest.name} (约${Math.round(distanceMeters)}米)<br>${desc}<br>🎧 正在播放语音...`;
-        } else {
-            document.getElementById("info").innerHTML = `🗺️ 坐标: ${lng.toFixed(5)}, ${lat.toFixed(5)}<br>未匹配到景点，请点击图标或列表。`;
+            document.getElementById("info").innerHTML =
+                `🎯 <strong>${target.name}</strong><br>${desc}<br>🎧 正在播放语音…`;
         }
-    }
 
-    function initMap() {
-        map = new AMap.Map("map", {
-            center: center,
-            zoom: 14.2,
-            resizeEnable: true,
-            showBuildingBlock: true,
-            showLabel: true
-        });
-        AMap.plugin("AMap.Heatmap", () => {
-            heatmap = new AMap.Heatmap(map, {
-                radius: 35,
-                opacity: [0.3, 0.92],
-                gradient: { 0.05:"#0000ff", 0.25:"#00ffff", 0.45:"#00ff00", 0.65:"#ffff00", 0.85:"#ffa500", 1.0:"#ff0000" }
+        // ===== 噪音热力图（使用更醒目的渐变） =====
+        function showNoiseHeat() {
+            if (!heatmap) return;
+            const noiseData = points.map(p => ({
+                lng: p.lng,
+                lat: p.lat,
+                count: calcNoiseFromHeat(p.dayCount)
+            }));
+            const maxNoise = Math.max(...noiseData.map(d => d.count), 78);
+            heatmap.setDataSet({ max: maxNoise, data: noiseData });
+            heatmap.setOptions({
+                radius: getAdaptiveRadius(),
+                gradient: {
+                    0.0: "#0000ff",   // 蓝
+                    0.2: "#0088ff",
+                    0.4: "#00ff88",
+                    0.6: "#ffff00",   // 黄
+                    0.8: "#ff8800",   // 橙
+                    1.0: "#ff0000"    // 红
+                },
+                opacity: [0.25, 0.9]
             });
-            heatmap.hide();
-            heatmap._visible = false;
-        });
-        showPoints();
-        renderRankingList();
-        map.on("click", onMapClick);
-        bindZoomEvent();
-        setTimeout(() => {
-            document.getElementById("info").innerHTML = "🔊 荆州古城噪声分布系统已启动 | 点击「噪音分布热力图」查看热力，点击任意图标或右侧列表收听声音描述。";
-        }, 500);
-    }
+            heatmap.show();
+            heatmap._visible = true;
+            const topPoint = points.reduce((a, b) => calcNoiseFromHeat(a.dayCount) > calcNoiseFromHeat(b.dayCount) ? a : b);
+            document.getElementById("info").innerHTML =
+                `🔊 噪音分布热力图已加载 | 最高噪声点: ${topPoint.name} (${calcNoiseFromHeat(topPoint.dayCount)} dB(A))<br>🎧 点击任意气泡收听详细声源描述`;
+        }
 
-    // 全局函数
-    window.showNoiseHeat = showNoiseHeat;
-    window.clearHeat = clearHeat;
-    window.togglePoints = togglePoints;
-    window.quickLocateAndPlay = quickLocateAndPlay;
-    window.stopAllAudio = stopAllAudio;
-    window.onload = initMap;
-</script>
+        function clearHeat() {
+            if (heatmap) {
+                heatmap.hide();
+                heatmap._visible = false;
+            }
+            document.getElementById("info").innerHTML = "🗑️ 热力图层已清除，可点击「噪音热力图」重新加载。";
+        }
+
+        // ============================================================
+        // ★ 地图点击 → 只显示坐标，不发声
+        // ============================================================
+        function onMapClick(e) {
+            const lng = e.lnglat.getLng();
+            const lat = e.lnglat.getLat();
+            document.getElementById("info").innerHTML =
+                `🗺️ 坐标: ${lng.toFixed(5)}, ${lat.toFixed(5)}<br>请点击地图上的 <strong>彩色气泡</strong> 或右侧 <strong>排行榜</strong> 收听声音描述。`;
+        }
+
+        // ===== 初始化地图 =====
+        function initMap() {
+            map = new AMap.Map("map", {
+                center: center,
+                zoom: 14.2,
+                resizeEnable: true,
+                showBuildingBlock: true,
+                showLabel: true
+            });
+
+            AMap.plugin("AMap.Heatmap", () => {
+                heatmap = new AMap.Heatmap(map, {
+                    radius: 35,
+                    opacity: [0.25, 0.9],
+                    gradient: {
+                        0.0: "#0000ff",
+                        0.2: "#0088ff",
+                        0.4: "#00ff88",
+                        0.6: "#ffff00",
+                        0.8: "#ff8800",
+                        1.0: "#ff0000"
+                    }
+                });
+                heatmap.hide();
+                heatmap._visible = false;
+
+                // 默认显示热力图
+                showNoiseHeat();
+            });
+
+            showPoints();
+            renderRankingList();
+
+            map.on("click", onMapClick);
+            bindZoomEvent();
+
+            setTimeout(() => {
+                document.getElementById("info").innerHTML =
+                    "🔊 <strong>荆州古城声纹图</strong> 已启动 | 热力图默认显示，点击彩色 <strong>气泡</strong> 或右侧 <strong>排行榜</strong> 收听噪声描述";
+            }, 500);
+        }
+
+        // ===== 暴露全局函数 =====
+        window.showNoiseHeat = showNoiseHeat;
+        window.clearHeat = clearHeat;
+        window.togglePoints = togglePoints;
+        window.quickLocateAndPlay = quickLocateAndPlay;
+        window.stopAllAudio = stopAllAudio;
+        window.onload = initMap;
+    </script>
+
 </body>
 </html>
